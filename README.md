@@ -1,7 +1,7 @@
 # YouTube Subtitle Panel Extension
 
-**Navigate YouTube videos with a smart, resizable subtitle panel—jump to any moment by clicking on subtitles!
-**---
+Navigate YouTube videos with a smart, resizable subtitle panel—jump to any moment by clicking on subtitles!
+
 
 ## Features
 
