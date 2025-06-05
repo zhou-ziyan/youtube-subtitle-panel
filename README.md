@@ -56,11 +56,5 @@ Pull requests and suggestions are welcome! Please open an issue or PR if you hav
 
 ---
 
-## License
-
-[MIT](LICENSE) — Free for personal and commercial use.
-
----
-
 **Note:**  
 This project is not affiliated with or endorsed by YouTube or Google. 
