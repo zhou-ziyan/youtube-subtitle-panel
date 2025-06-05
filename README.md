@@ -1,8 +1,7 @@
 # YouTube Subtitle Panel Extension
 
-A modern Chrome extension that adds a resizable, always-night-mode subtitle panel to YouTube videos. The panel appears on the right side of the video page, supports language selection, font size controls, and robustly tracks video changes—even with YouTube's single-page navigation.
-
----
+**Navigate YouTube videos with a smart, resizable subtitle panel—jump to any moment by clicking on subtitles!
+**---
 
 ## Features
 
