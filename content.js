@@ -420,17 +420,17 @@ async function getCaptionTracks() {
         }
         
         if (!playerData) {
-            throw new Error(`Player data not found (attempt ${i + 1}/${maxRetries})`);
+            throw new Error('Player data not found');
         }
 
         const captionTracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-        
+
         if (!captionTracks || captionTracks.length === 0) {
             // Check if video has no captions at all
             if (playerData?.captions === undefined) {
                 throw new Error('Video does not have any captions');
             }
-            throw new Error(`No caption tracks found in player data (attempt ${i + 1}/${maxRetries})`);
+            throw new Error('No caption tracks found in player data');
         }
 
         // Log success and return the tracks
@@ -452,8 +452,13 @@ async function getCaptionTracks() {
 async function fetchCaptions(baseUrl) {
     try {
         const response = await fetch(`${baseUrl}&fmt=json3`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const data = await response.json();
-        
+        if (!data.events) {
+            throw new Error('Caption response missing events field');
+        }
         return data.events
             .filter(event => event.segs) // Filter out events without text
             .map(event => ({
@@ -464,8 +469,7 @@ async function fetchCaptions(baseUrl) {
             }))
             .filter(caption => caption.text); // Filter out empty captions
     } catch (error) {
-        const errorMessage = 'No subtitles could be loaded for this video. You can try to refresh the page using the button in the top right corner.';
-        console.warn(errorMessage);
+        console.warn('[fetchCaptions] Failed to fetch captions:', error);
         return null;
     }
 }
