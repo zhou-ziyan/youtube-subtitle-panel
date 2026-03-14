@@ -465,7 +465,7 @@ async function fetchCaptions(baseUrl) {
                 startTime: event.tStartMs,
                 duration: event.dDurationMs,
                 endTime: event.tStartMs + event.dDurationMs,
-                text: event.segs.map(seg => seg.utf8).join('').trim()
+                text: event.segs.map(seg => seg?.utf8 ?? '').join('').trim()
             }))
             .filter(caption => caption.text); // Filter out empty captions
     } catch (error) {
