@@ -450,28 +450,23 @@ async function getCaptionTracks() {
 
 // Function to fetch captions for a specific track
 async function fetchCaptions(baseUrl) {
-    try {
-        const response = await fetch(`${baseUrl}&fmt=json3`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const data = await response.json();
-        if (!data.events) {
-            throw new Error('Caption response missing events field');
-        }
-        return data.events
-            .filter(event => event.segs) // Filter out events without text
-            .map(event => ({
-                startTime: event.tStartMs,
-                duration: event.dDurationMs,
-                endTime: event.tStartMs + event.dDurationMs,
-                text: event.segs.map(seg => seg?.utf8 ?? '').join('').trim()
-            }))
-            .filter(caption => caption.text); // Filter out empty captions
-    } catch (error) {
-        console.warn('[fetchCaptions] Failed to fetch captions:', error);
-        return null;
+    const response = await fetch(`${baseUrl}&fmt=json3`);
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+    const data = await response.json();
+    if (!data.events) {
+        throw new Error('Caption response missing events field');
+    }
+    return data.events
+        .filter(event => event.segs) // Filter out events without text
+        .map(event => ({
+            startTime: event.tStartMs,
+            duration: event.dDurationMs,
+            endTime: event.tStartMs + event.dDurationMs,
+            text: event.segs.map(seg => seg?.utf8 ?? '').join('').trim()
+        }))
+        .filter(caption => caption.text); // Filter out empty captions
 }
 
 // Function to format time (ms to MM:SS)
@@ -691,11 +686,7 @@ async function updateCaptionsAndLanguages() {
 
         // Fetch captions for the selected language (always from current video)
         const captions = await fetchCaptions(selectedBaseUrl);
-        if (captions) {
-            displayCaptions(captions);
-        } else {
-            throw new Error('Failed to fetch captions for the selected language');
-        }
+        displayCaptions(captions);
 
         // Add new event listener for language changes
         newSelect.addEventListener('change', async (e) => {
@@ -703,17 +694,17 @@ async function updateCaptionsAndLanguages() {
                 const selectedOption = e.target.selectedOptions[0];
                 const langCode = selectedOption.getAttribute('data-lang');
                 saveLanguagePreference(langCode);
-                
+
                 subtitleContent.innerHTML = '<div class="loading-text">Loading subtitles...</div>';
                 // Always fetch fresh tracks for the current video on language change
                 const freshTracks = await getCaptionTracks();
                 const freshTrack = freshTracks.find(track => track.baseUrl === e.target.value);
                 if (freshTrack) {
-                    const captions = await fetchCaptions(freshTrack.baseUrl);
-                    if (captions) {
+                    try {
+                        const captions = await fetchCaptions(freshTrack.baseUrl);
                         displayCaptions(captions);
-                    } else {
-                        subtitleContent.innerHTML = `<div class="no-captions">Error loading subtitles: Failed to fetch captions</div>`;
+                    } catch (err) {
+                        subtitleContent.innerHTML = `<div class="no-captions">Error loading subtitles: ${err.message}</div>`;
                     }
                 } else {
                     subtitleContent.innerHTML = `<div class="no-captions">Error: Selected language track not found for this video</div>`;
