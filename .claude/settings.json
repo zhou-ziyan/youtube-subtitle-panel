@@ -3,6 +3,9 @@
     "additionalDirectories": [
       "/Users/ziyanzhou/.claude/projects/-Users-ziyanzhou-Desktop-Code-subtitle/memory",
       "/Users/ziyanzhou/.claude/projects/-Users-ziyanzhou-Desktop-Code-subtitle/memory/plans"
+    ],
+    "allow": [
+      "WebSearch"
     ]
   },
   "allowedTools": [

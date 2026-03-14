@@ -8,8 +8,9 @@
 
 # Workflow Preferences
 
-- After completing any meaningful update, auto-commit and auto-push directly to `main` without asking for confirmation.
+- After completing any meaningful update, auto-commit directly to `main` without asking for confirmation.
 - No pull requests — this is a solo project.
+- While actively debugging an issue where it's unclear if the fix worked, do not commit until the fix is confirmed.
 
 # Communication
 
