@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "YouTube Subtitle Panel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Navigate YouTube videos with a smart, resizable subtitle panel—jump to any moment by clicking on subtitles!",
   "content_scripts": [
     {
@@ -14,4 +14,4 @@
     "48": "icon48.png",
     "128": "icon128.png"
   }
-} 
+}

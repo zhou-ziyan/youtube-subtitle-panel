@@ -18,20 +18,81 @@ Navigate YouTube videos with a smart, resizable subtitle panel—jump to any mom
 
 ---
 
+## Prerequisites
+
+The extension relies on a local subtitle server that uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) to download captions.
+
+### 1. Install yt-dlp
+
+```bash
+# macOS
+brew install yt-dlp
+
+# or via pip
+pip install yt-dlp
+```
+
+Verify it works:
+
+```bash
+yt-dlp --version
+```
+
+### 2. Install Node.js
+
+Node.js 18+ is required to run the subtitle server. Download from [nodejs.org](https://nodejs.org/) or:
+
+```bash
+brew install node
+```
+
+---
+
 ## Installation
 
-1. **Download this Repository**
-   - Clone or download and unzip the code.
+### Set up the subtitle server
 
-2. **Load the Extension in Chrome**
-   - Go to `chrome://extensions/`
-   - Enable **Developer mode** (top right toggle)
-   - Click **Load unpacked**
-   - Select this project folder
+```bash
+# Clone or download this repository
+git clone <repo-url>
+cd subtitle
+
+# Install Node dependencies (only needed once)
+npm install
+```
+
+### Load the Chrome extension
+
+1. Go to `chrome://extensions/`
+2. Enable **Developer mode** (top right toggle)
+3. Click **Load unpacked**
+4. Select this project folder
 
 ---
 
 ## Usage
+
+### Step 1: Start the subtitle server
+
+Before opening YouTube, start the server in a terminal:
+
+```bash
+node subtitle-server.mjs
+```
+
+You should see:
+
+```
+[subtitle-server] Running on http://localhost:9876
+[subtitle-server] Endpoints:
+  GET /langs?v=VIDEO_ID         — list available subtitle languages
+  GET /captions?v=VIDEO_ID&lang=en — download captions as srv3 XML
+  GET /health                    — health check
+```
+
+Keep this terminal open while using the extension.
+
+### Step 2: Use the extension
 
 1. Navigate to any YouTube video (`youtube.com/watch?v=...`).
 2. The subtitle panel appears on the right. The page may reload once automatically — this is normal.
@@ -40,73 +101,54 @@ Navigate YouTube videos with a smart, resizable subtitle panel—jump to any mom
 5. **Seek:** Click any subtitle line to jump to that point in the video.
 6. **Resize:** Drag the left edge of the panel to resize it (200–600px).
 7. **Hide/Show:** Click "Hide" to collapse; drag or click the floating "Show" button to restore.
-8. **Subtitles not loading?** Click the ⟳ refresh button in the header.
+8. **Subtitles not loading?** Make sure the subtitle server is running, then click the ⟳ refresh button in the header.
+
+---
+
+## How It Works
+
+The extension uses a two-part architecture:
+
+1. **Subtitle server** (`subtitle-server.mjs`) — A local Node.js HTTP server on port 9876 that calls `yt-dlp` to download subtitles. This avoids all YouTube API authentication issues since `yt-dlp` handles that internally.
+
+2. **Chrome extension** (`content.js`, `styles.css`) — Injects a subtitle panel into YouTube video pages. When a video loads, the extension requests available languages and caption data from the local server.
+
+```
+YouTube page  →  content.js  →  localhost:9876  →  yt-dlp  →  YouTube
+                  (UI panel)     (local server)     (CLI)     (captions)
+```
 
 ---
 
 ## File Overview
 
-- `manifest.json` — Chrome extension manifest
-- `content.js` — All extension logic: panel injection, subtitle fetching, UI controls, SPA navigation handling
-- `styles.css` — Panel and UI styles
-- `icon16.png`, `icon48.png`, `icon128.png` — Extension icons
+| File | Purpose |
+|---|---|
+| `manifest.json` | Chrome extension manifest |
+| `content.js` | Extension logic: panel injection, UI controls, SPA navigation |
+| `styles.css` | Panel and UI styles |
+| `subtitle-server.mjs` | Local HTTP server that fetches subtitles via yt-dlp |
+| `icon48.png`, `icon128.png` | Extension icons |
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| "Subtitle server not running" error in panel | Start the server: `node subtitle-server.mjs` |
+| No subtitles for a specific language | Not all videos have subtitles in all languages. Try `en` or check available languages in the dropdown |
+| yt-dlp errors | Update yt-dlp: `pip install -U yt-dlp` or `brew upgrade yt-dlp` |
+| Subtitles not updating after navigating to new video | Click the ⟳ refresh button in the panel header |
 
 ---
 
 ## Known Limitations
 
-- Subtitles are fetched from `ytInitialPlayerResponse` embedded in the page HTML. If YouTube changes this format, subtitle loading may break.
+- Requires a local server running — the extension alone cannot fetch subtitles due to YouTube API restrictions.
 - Auto-generated captions and manually uploaded tracks are both listed; availability depends on the video.
 - The extension only activates on `/watch?v=...` pages, not YouTube Shorts or other YouTube URLs.
-
----
-
-## Contributing
-
-### Setup
-
-1. Fork this repo and clone your fork.
-2. Load the extension in Chrome (see [Installation](#installation) above).
-
-### Making Changes
-
-There is no build step. Edit the source files directly:
-
-- **Logic/behavior** → `content.js`
-- **Panel appearance** → `styles.css`
-
-After saving a file, reload the extension to pick up changes:
-
-- Go to `chrome://extensions/`
-- Click the **reload** icon (⟳) on the extension card
-
-Then refresh the YouTube tab you're testing on.
-
-### Testing Manually
-
-Open Chrome DevTools (`F12`) on a YouTube video page. The extension logs heavily to the console — all key events are prefixed with `[functionName]`, e.g. `[createSubtitlePanel]`, `[handlePageChange]`.
-
-Scenarios to test after any change:
-
-| Scenario | What to verify |
-|---|---|
-| Direct page load (`youtube.com/watch?v=...`) | Panel appears, subtitles load |
-| Click a video link from YouTube homepage | Page auto-reloads once, then subtitles load |
-| Browser back/forward | Panel resets for the new video |
-| Language switch via dropdown | New subtitles load without a page reload |
-| Resize the panel | Width is saved; persists after refresh |
-| Hide → drag Show button → click Show | Panel restores; dragged position is forgotten |
-| Video with no subtitles | Panel shows the "No subtitles" message, no crash |
-| Video with an ad | Ad banner appears in panel; highlighting resumes after |
-
-### Known Issues to Fix
-
-- `getCaptionTracks()` references undefined variables `i` and `maxRetries` (lines 423, 434 of `content.js`) — these are leftovers from a removed retry loop and will throw a `ReferenceError` if hit.
-- The night mode `// TODO` comment (line 233 of `content.js`) suggests a light/dark toggle was planned but never implemented.
-
-### Submitting a PR
-
-Please open an issue first for non-trivial changes so we can discuss the approach. PRs with a brief description of what was tested are appreciated.
+- First subtitle load for a video may take a few seconds as yt-dlp downloads the data.
 
 ---
 

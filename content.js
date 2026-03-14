@@ -33,8 +33,6 @@ async function createSubtitlePanel() {
     panel.innerHTML = `
         <div class="resize-handle" id="resize-handle"></div>
         <div class="subtitle-header">
-            <span class="refresh-warning" style="margin-right:8px;color:#ff9800;font-size:13px;">Not the new subtitle? Click here:</span>
-            <button id="refresh-page-btn" class="refresh-btn" title="Refresh page">⟳</button>
             <select id="language-select">
                 <option value="">Loading languages...</option>
             </select>
@@ -82,12 +80,6 @@ async function createSubtitlePanel() {
     
     await updateCaptionsAndLanguages(currentVideoId);
     console.log('[createSubtitlePanel] Captions loaded');
-
-    // Add refresh button event listener
-    document.getElementById('refresh-page-btn').addEventListener('click', () => {
-        localStorage.setItem('subtitles-reloaded', '1');
-        window.location.reload();
-    });
 
     // Resizable functionality
     const resizeHandle = document.getElementById('resize-handle');
@@ -267,15 +259,6 @@ const urlObserver = new MutationObserver(() => {
     if (currentUrl !== lastUrl) {
         lastUrl = currentUrl;
         console.log('[urlObserver] URL changed, handling page change');
-        
-        // Reload the page once on URL change to ensure fresh player data
-        if (!localStorage.getItem('subtitles-reloaded')) {
-            localStorage.setItem('subtitles-reloaded', '1');
-            window.location.reload();
-            return;
-        } else {
-            localStorage.removeItem('subtitles-reloaded');
-        }
         handlePageChange();
     }
 });
@@ -403,70 +386,56 @@ function findBestLanguageMatch(tracks, preferredLang) {
     return track;
 }
 
-// Function to extract caption tracks
-async function getCaptionTracks() {
-    try {
-        let playerData;
-        
-        try {
-            const ytPlayerData = document.body.innerHTML.match(/ytInitialPlayerResponse\s*=\s*({.+?});/)?.[1];
-            if (ytPlayerData) {
-                playerData = JSON.parse(ytPlayerData);
-                console.log(playerData);
-                console.log('Successfully got player data from ytInitialPlayerResponse');
-            }
-        } catch (e) {
-            console.log('Failed to get data from ytInitialPlayerResponse:', e.message);
-        }
-        
-        if (!playerData) {
-            throw new Error('Player data not found');
-        }
+const SUBTITLE_SERVER = 'http://localhost:9876';
 
-        const captionTracks = playerData?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+function parseSrv3Captions(body) {
+    const parser = new DOMParser();
+    const xml = parser.parseFromString(body, 'text/xml');
 
-        if (!captionTracks || captionTracks.length === 0) {
-            // Check if video has no captions at all
-            if (playerData?.captions === undefined) {
-                throw new Error('Video does not have any captions');
-            }
-            throw new Error('No caption tracks found in player data');
-        }
-
-        // Log success and return the tracks
-        console.log(`Successfully found ${captionTracks.length} caption tracks`);
-        return captionTracks.map(track => ({
-            languageCode: track.languageCode,
-            languageName: track.name?.simpleText || track.name?.runs?.[0]?.text || track.languageCode,
-            baseUrl: track.baseUrl
-        }));
-    } catch (error) {
-        // Use a user-friendly message instead of an error
-        const errorMessage = 'No subtitles could be loaded for this video. You can try to refresh the page using the button in the top right corner.';
-        console.warn(errorMessage);
-        return null;
+    // Try <p t="ms" d="ms"> format
+    let elements = Array.from(xml.querySelectorAll('p[t][d]'));
+    if (elements.length > 0) {
+        return elements
+            .map(el => {
+                const startMs = parseInt(el.getAttribute('t') || '0', 10);
+                const durMs = parseInt(el.getAttribute('d') || '3000', 10);
+                return {
+                    startTime: startMs, duration: durMs, endTime: startMs + durMs,
+                    text: el.textContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+                };
+            })
+            .filter(caption => caption.text);
     }
+
+    // Try <text start="seconds" dur="seconds"> format
+    elements = Array.from(xml.querySelectorAll('text'));
+    if (elements.length > 0) {
+        return elements
+            .map(el => {
+                const startMs = Math.round(parseFloat(el.getAttribute('start') || '0') * 1000);
+                const durMs = Math.round(parseFloat(el.getAttribute('dur') || '3') * 1000);
+                return {
+                    startTime: startMs, duration: durMs, endTime: startMs + durMs,
+                    text: el.textContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+                };
+            })
+            .filter(caption => caption.text);
+    }
+
+    throw new Error('No captions found in response');
 }
 
-// Function to fetch captions for a specific track
-async function fetchCaptions(baseUrl) {
-    const response = await fetch(`${baseUrl}&fmt=json3`);
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+// Fetch captions from local subtitle server (uses yt-dlp)
+async function fetchCaptions(langCode, videoId) {
+    console.log('[fetchCaptions] Fetching via local server — lang:', langCode, '| video:', videoId);
+    const resp = await fetch(`${SUBTITLE_SERVER}/captions?v=${videoId}&lang=${langCode}`);
+    if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(err.error || `Server returned ${resp.status}`);
     }
-    const data = await response.json();
-    if (!data.events) {
-        throw new Error('Caption response missing events field');
-    }
-    return data.events
-        .filter(event => event.segs) // Filter out events without text
-        .map(event => ({
-            startTime: event.tStartMs,
-            duration: event.dDurationMs,
-            endTime: event.tStartMs + event.dDurationMs,
-            text: event.segs.map(seg => seg?.utf8 ?? '').join('').trim()
-        }))
-        .filter(caption => caption.text); // Filter out empty captions
+    const body = await resp.text();
+    console.log('[fetchCaptions] Got caption data, length:', body.length);
+    return parseSrv3Captions(body);
 }
 
 // Function to format time (ms to MM:SS)
@@ -652,8 +621,10 @@ async function updateCaptionsAndLanguages() {
     languageSelect.parentNode.replaceChild(newSelect, languageSelect);
 
     try {
-        // Always fetch fresh caption tracks for the current video
-        const tracks = await getCaptionTracks();
+        // Fetch available languages from local subtitle server
+        const langsResp = await fetch(`${SUBTITLE_SERVER}/langs?v=${currentVideoId}`);
+        if (!langsResp.ok) throw new Error(`Subtitle server returned ${langsResp.status}`);
+        const { tracks } = await langsResp.json();
         
         if (!tracks || tracks.length === 0) {
             const message = 'No subtitles could be loaded for this video. You can try to refresh the page using the button in the top right corner.';
@@ -671,8 +642,8 @@ async function updateCaptionsAndLanguages() {
         });
 
         // Update language selector with fresh tracks
-        newSelect.innerHTML = tracks.map(track => 
-            `<option value="${track.baseUrl}" data-lang="${track.languageCode}">
+        newSelect.innerHTML = tracks.map((track, i) =>
+            `<option value="${i}" data-lang="${track.languageCode}">
                 ${track.languageName || track.languageCode}
             </option>`
         ).join('');
@@ -681,40 +652,39 @@ async function updateCaptionsAndLanguages() {
         // Find and select the preferred language
         const preferredLang = getPreferredLanguage();
         const bestMatch = findBestLanguageMatch(tracks, preferredLang);
-        let selectedBaseUrl = bestMatch ? bestMatch.baseUrl : tracks[0].baseUrl;
-        newSelect.value = selectedBaseUrl;
+        const selectedTrack = bestMatch || tracks[0];
+        const selectedIdx = tracks.indexOf(selectedTrack);
+        newSelect.value = String(selectedIdx);
 
-        // Fetch captions for the selected language (always from current video)
-        const captions = await fetchCaptions(selectedBaseUrl);
+        // Fetch captions for the selected language
+        const captions = await fetchCaptions(selectedTrack.languageCode, currentVideoId);
         displayCaptions(captions);
 
         // Add new event listener for language changes
         newSelect.addEventListener('change', async (e) => {
-            if (e.target.value) {
+            const idx = parseInt(e.target.value, 10);
+            const track = tracks[idx];
+            if (track) {
                 const selectedOption = e.target.selectedOptions[0];
                 const langCode = selectedOption.getAttribute('data-lang');
                 saveLanguagePreference(langCode);
 
                 subtitleContent.innerHTML = '<div class="loading-text">Loading subtitles...</div>';
-                // Always fetch fresh tracks for the current video on language change
-                const freshTracks = await getCaptionTracks();
-                const freshTrack = freshTracks.find(track => track.baseUrl === e.target.value);
-                if (freshTrack) {
-                    try {
-                        const captions = await fetchCaptions(freshTrack.baseUrl);
-                        displayCaptions(captions);
-                    } catch (err) {
-                        subtitleContent.innerHTML = `<div class="no-captions">Error loading subtitles: ${err.message}</div>`;
-                    }
-                } else {
-                    subtitleContent.innerHTML = `<div class="no-captions">Error: Selected language track not found for this video</div>`;
+                try {
+                    const captions = await fetchCaptions(track.languageCode, currentVideoId);
+                    displayCaptions(captions);
+                } catch (err) {
+                    subtitleContent.innerHTML = `<div class="no-captions">Error loading subtitles: ${err.message}</div>`;
                 }
             }
         });
 
     } catch (error) {
         console.error('Error loading captions:', error);
-        const errorMessage = error.message || 'Unknown error occurred while loading subtitles';
+        const isFetchError = error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError');
+        const errorMessage = isFetchError
+            ? 'Subtitle server not running. Start it with: node subtitle-server.mjs'
+            : (error.message || 'Unknown error');
         subtitleContent.innerHTML = `<div class="no-captions">Error: ${errorMessage}</div>`;
         newSelect.innerHTML = `<option value="">Error loading languages</option>`;
         newSelect.disabled = true;
@@ -760,4 +730,4 @@ if (document.readyState === 'complete') {
     handlePageChange();
 } else {
     window.addEventListener('load', handlePageChange);
-} 
+}
