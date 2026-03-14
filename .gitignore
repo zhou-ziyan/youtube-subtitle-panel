@@ -7,6 +7,9 @@
 .vscode/
 *.code-workspace
 
+# Claude Code (local-only overrides, not for sharing)
+.claude/settings.local.json
+
 # Environment & secrets
 .env
 .env.*
