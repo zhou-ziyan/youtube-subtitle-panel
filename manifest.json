@@ -1,17 +1,27 @@
 {
   "manifest_version": 3,
   "name": "YouTube Subtitle Panel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Navigate YouTube videos with a smart, resizable subtitle panel—jump to any moment by clicking on subtitles!",
   "content_scripts": [
     {
       "matches": ["*://*.youtube.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"]
+      "js": [
+        "extension/preferences.js",
+        "extension/captions.js",
+        "extension/captions-ui.js",
+        "extension/language.js",
+        "extension/panel.js",
+        "extension/panel-interactions.js",
+        "extension/navigation.js",
+        "extension/content.js"
+      ],
+      "css": ["extension/styles.css"]
     }
   ],
   "icons": {
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }

@@ -165,34 +165,6 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.mode-controls {
-    margin: 0 8px;
-}
-
-.mode-btn {
-    padding: 4px 8px;
-    border: 1px solid #e5e5e5;
-    border-radius: 4px;
-    background-color: #ffffff;
-    cursor: pointer;
-    font-size: 14px;
-    color: #606060;
-    transition: all 0.2s ease;
-    min-width: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.mode-btn:hover {
-    background-color: #f0f0f0;
-    border-color: #d0d0d0;
-}
-
-.mode-btn:active {
-    transform: scale(0.95);
-}
-
 /* Night mode styles */
 #subtitle-panel.night-mode {
     background-color: #212121;
@@ -251,7 +223,6 @@
 }
 
 #subtitle-panel.night-mode .font-size-btn,
-#subtitle-panel.night-mode .mode-btn,
 #subtitle-panel.night-mode .toggle-button {
     background-color: #282828;
     border-color: #333333;
@@ -259,7 +230,6 @@
 }
 
 #subtitle-panel.night-mode .font-size-btn:hover,
-#subtitle-panel.night-mode .mode-btn:hover,
 #subtitle-panel.night-mode .toggle-button:hover {
     background-color: #383838;
     border-color: #444444;
@@ -273,38 +243,6 @@
 
 #show-panel.night-mode:hover {
     background-color: #383838;
-}
-
-.refresh-btn {
-    margin-right: 10px;
-    padding: 4px 8px;
-    border: 1px solid #e5e5e5;
-    border-radius: 4px;
-    background-color: #ffffff;
-    cursor: pointer;
-    font-size: 16px;
-    color: #606060;
-    transition: background-color 0.2s, border-color 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 32px;
-}
-
-.refresh-btn:hover {
-    background-color: #f0f0f0;
-    border-color: #d0d0d0;
-}
-
-#subtitle-panel.night-mode .refresh-btn {
-    background-color: #181818;
-    border-color: #333333;
-    color: #ffffff;
-}
-
-#subtitle-panel.night-mode .refresh-btn:hover {
-    background-color: #282828;
-    border-color: #444444;
 }
 
 .resize-handle {
@@ -331,4 +269,4 @@
 
 #subtitle-panel.night-mode .resize-handle {
     background: linear-gradient(to right, #88888833 60%, transparent 100%);
-} 
+}
