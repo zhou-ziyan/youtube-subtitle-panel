@@ -1,3 +1,4 @@
 # Workflow Preferences
 
-- After completing any change, commit it and open a pull request.
+- After completing any change, commit it directly to `main`.
+- No pull requests — this is a solo project.
