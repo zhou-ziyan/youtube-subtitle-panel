@@ -30,3 +30,29 @@ type: {{user | feedback | project | reference}}
 ```
 
 After saving a memory file, always update `MEMORY.md` with a pointer entry.
+
+## Plans
+
+Work items (bugs, features, TODOs) go in `memory/plans/` as individual files. Use this template:
+
+```markdown
+---
+name: {{plan name}}
+description: {{one-line summary}}
+type: project
+---
+
+{{1–2 sentence description of the problem or feature.}}
+
+**Status:** {{Not started | In progress | Done}}
+
+**Location:** `{{file:line}}`
+
+**Why:** {{Root cause or motivation.}}
+
+**Approach:** {{Concrete steps or implementation direction.}}
+
+**How to apply:** {{Guidance for Claude — what to watch out for or assume.}}
+```
+
+Update **Status** to `In progress` when starting work, and `Done` when complete.
