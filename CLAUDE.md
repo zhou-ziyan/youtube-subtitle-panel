@@ -2,8 +2,8 @@
 
 # Key Behaviors
 
-- Subtitles are parsed from `ytInitialPlayerResponse` embedded in the page HTML.
-- On YouTube SPA navigation (clicking a video link), the extension triggers one automatic page reload to get fresh player data. This is intentional.
+- Subtitles are fetched via a local Node.js server (`server/subtitle-server.mjs` on port 9876) that wraps yt-dlp.
+- Extension code is split into 8 focused modules under `extension/`, loaded in dependency order via manifest.json. All scripts share the content script global scope (no bundler).
 - Preferences saved to `localStorage`: panel width, font size, language, Show-button position.
 
 # Workflow Preferences
