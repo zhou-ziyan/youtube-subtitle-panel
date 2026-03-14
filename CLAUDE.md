@@ -8,7 +8,7 @@
 
 # Workflow Preferences
 
-- After completing any meaningful update, auto-commit directly to `main` without asking for confirmation.
+- After completing any meaningful update, auto-commit and auto-push directly to `main` without asking for confirmation.
 - No pull requests — this is a solo project.
 
 # Communication
