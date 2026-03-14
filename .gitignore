@@ -1,1 +1,23 @@
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+secrets.*
+
+# Node (if ever added)
+node_modules/
+npm-debug.log*
+
+# Build output (if ever added)
+dist/
+build/
