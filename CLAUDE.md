@@ -1,4 +1,3 @@
-@.claude/bugs.md
 @.claude/testing.md
 
 # Key Behaviors
