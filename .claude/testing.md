@@ -1,6 +1,8 @@
-# How to Test Changes
+# Testing Checklist for Claude
 
-1. Edit source files directly.
-2. Go to `chrome://extensions/` → click the reload icon (⟳) on the extension card.
-3. Refresh the YouTube tab.
-4. Check the browser console — all log lines are prefixed with `[functionName]`.
+Before committing any change to `content.js` or `styles.css`, verify:
+
+1. No new `ReferenceError`-prone patterns (see `bugs.md` for existing known issues).
+2. Any new function follows the `[functionName]` log prefix convention.
+3. `localStorage` keys for preferences remain backward-compatible if changed.
+4. SPA navigation reload logic is not accidentally removed or duplicated.
