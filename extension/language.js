@@ -16,22 +16,24 @@ function saveLanguagePreference(languageCode) {
 }
 
 function findBestLanguageMatch(tracks, preferredLang) {
-    // Exact match
-    let track = tracks.find(t => t.languageCode === preferredLang);
+    // Prefer manual tracks over auto-generated
+    const manual = tracks.filter(t => t.kind !== 'asr');
+    const auto = tracks.filter(t => t.kind === 'asr');
+    // Strip "-en" suffix from auto-caption codes for matching (e.g. "fr-en" → "fr")
+    const normalizeCode = (code) => code.replace(/-[a-z]{2}$/, '');
 
-    // Case-insensitive
-    if (!track) {
-        track = tracks.find(t => t.languageCode.toLowerCase() === preferredLang.toLowerCase());
-    }
+    const findIn = (list, lang) => {
+        const lo = lang.toLowerCase();
+        return list.find(t => normalizeCode(t.languageCode).toLowerCase() === lo)
+            || list.find(t => normalizeCode(t.languageCode).toLowerCase().startsWith(lo));
+    };
 
-    // Prefix match (e.g. 'en-US' for 'en')
-    if (!track) {
-        track = tracks.find(t => t.languageCode.toLowerCase().startsWith(preferredLang.toLowerCase()));
-    }
+    // Try manual first, then auto
+    let track = findIn(manual, preferredLang) || findIn(auto, preferredLang);
 
     // Fallback to English
     if (!track && preferredLang !== 'en') {
-        track = tracks.find(t => t.languageCode.toLowerCase().startsWith('en'));
+        track = findIn(manual, 'en') || findIn(auto, 'en');
     }
 
     // Last resort: first track
@@ -73,17 +75,38 @@ async function updateCaptionsAndLanguages() {
             return;
         }
 
-        tracks.sort((a, b) => {
+        // Separate manual and auto-generated tracks
+        const manualTracks = tracks.filter(t => t.kind !== 'asr');
+        const autoTracks = tracks.filter(t => t.kind === 'asr');
+
+        const sortByName = (a, b) => {
             const nameA = a.languageName || a.languageCode;
             const nameB = b.languageName || b.languageCode;
             return nameA.localeCompare(nameB);
-        });
+        };
+        manualTracks.sort(sortByName);
+        autoTracks.sort(sortByName);
 
-        newSelect.innerHTML = tracks.map((track, i) =>
-            `<option value="${i}" data-lang="${track.languageCode}">
-                ${track.languageName || track.languageCode}
-            </option>`
-        ).join('');
+        // Clean up auto-generated names: "French from English" → "French"
+        for (const t of autoTracks) {
+            if (t.languageName) {
+                t.languageName = t.languageName.replace(/\s+from\s+\w+$/i, '');
+            }
+        }
+
+        const buildOptions = (list) => list.map((track) => {
+            const idx = tracks.indexOf(track);
+            return `<option value="${idx}" data-lang="${track.languageCode}">${track.languageName || track.languageCode}</option>`;
+        }).join('');
+
+        let html = '';
+        if (manualTracks.length > 0) {
+            html += `<optgroup label="Subtitles">${buildOptions(manualTracks)}</optgroup>`;
+        }
+        if (autoTracks.length > 0) {
+            html += `<optgroup label="Auto-generated">${buildOptions(autoTracks)}</optgroup>`;
+        }
+        newSelect.innerHTML = html;
         newSelect.disabled = false;
 
         // Select preferred language
