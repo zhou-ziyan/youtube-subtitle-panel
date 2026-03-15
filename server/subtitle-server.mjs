@@ -155,6 +155,23 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify({ error: 'Not found' }));
 });
 
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.log(`[subtitle-server] Port ${PORT} in use, killing old process...`);
+        execFile('lsof', ['-ti', `:${PORT}`], (_, stdout) => {
+            const pid = stdout?.trim();
+            if (pid) {
+                process.kill(Number(pid));
+                console.log(`[subtitle-server] Killed PID ${pid}, restarting...`);
+                setTimeout(() => server.listen(PORT), 500);
+            }
+        });
+    } else {
+        console.error('[subtitle-server] Server error:', err);
+        process.exit(1);
+    }
+});
+
 server.listen(PORT, () => {
     console.log(`[subtitle-server] Running on http://localhost:${PORT}`);
     console.log(`[subtitle-server] Endpoints:`);
