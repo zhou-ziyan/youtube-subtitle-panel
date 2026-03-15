@@ -20,10 +20,10 @@
 }
 
 #language-select {
-    padding: 4px 8px;
+    padding: 6px 8px;
     border: 1px solid #e5e5e5;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 13px;
     flex: 1;
     min-width: 0;
 }
@@ -86,15 +86,15 @@
 }
 
 .subtitle-footer {
-    padding: 16px;
+    padding: 10px 12px;
     border-top: 1px solid #e5e5e5;
     background-color: #f9f9f9;
 }
 
 .footer-controls {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 8px;
 }
 
 .font-size-controls {
@@ -103,15 +103,14 @@
 }
 
 .font-size-btn {
-    padding: 4px 8px;
+    padding: 6px 10px;
     border: 1px solid #e5e5e5;
     border-radius: 4px;
     background-color: #ffffff;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     color: #606060;
     transition: all 0.2s ease;
-    min-width: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -127,14 +126,15 @@
 }
 
 .toggle-button, #show-panel {
-    padding: 8px 16px;
+    padding: 6px 12px;
     border: 1px solid #e5e5e5;
     border-radius: 4px;
-    background-color: #f9f9f9;
+    background-color: #ffffff;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     color: #606060;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 .toggle-button:hover, #show-panel:hover {
