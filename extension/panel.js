@@ -109,6 +109,9 @@ function initializePanelFeatures() {
 }
 
 function cleanupPanel() {
+    const video = document.querySelector('video');
+    if (video) video.removeEventListener('timeupdate', updateActiveCaption);
+
     const panel = document.getElementById('subtitle-panel');
     const showButton = document.getElementById('show-panel');
 

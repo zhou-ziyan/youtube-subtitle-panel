@@ -13,7 +13,7 @@ function formatTime(ms) {
 
 function findActiveCaption(currentTime) {
     const timeMs = currentTime * 1000;
-    return currentCaptions.find(c => timeMs >= c.startTime && timeMs < c.endTime);
+    return currentCaptions.findLast(c => timeMs >= c.startTime && timeMs < c.endTime);
 }
 
 function scrollToCaption(captionElement) {
@@ -24,14 +24,7 @@ function scrollToCaption(captionElement) {
 
 function seekToTime(timeMs) {
     const video = document.querySelector('video');
-    if (!video) return;
-
-    const player = document.querySelector('#movie_player');
-    if (player && typeof player.seekTo === 'function') {
-        player.seekTo(timeMs / 1000);
-    } else {
-        video.currentTime = timeMs / 1000;
-    }
+    if (video) video.currentTime = timeMs / 1000;
 }
 
 function handleCaptionClick(event) {
@@ -40,6 +33,12 @@ function handleCaptionClick(event) {
 
     const startTime = parseInt(captionItem.dataset.start);
     if (!isNaN(startTime)) {
+        // Highlight immediately to prevent flash when timeupdate fires with old time
+        const previousActive = document.querySelector('.caption-item.active');
+        if (previousActive) previousActive.classList.remove('active');
+        captionItem.classList.add('active');
+        lastActiveCaptionTime = startTime;
+
         seekToTime(startTime);
         captionItem.style.transform = 'scale(0.95)';
         setTimeout(() => { captionItem.style.transform = ''; }, 200);
@@ -48,10 +47,7 @@ function handleCaptionClick(event) {
 
 function isAdPlaying() {
     const player = document.querySelector('#movie_player');
-    if (!player) return false;
-    return typeof player.getAdState === 'function'
-        ? player.getAdState() === 1
-        : player.classList.contains('ad-showing');
+    return player ? player.classList.contains('ad-showing') : false;
 }
 
 function updateAdSign(subtitleContent, adPlaying) {
