@@ -10,8 +10,9 @@ function applyPanelWidth(width) {
         document.head.appendChild(panelLayoutStyle);
     }
     panelLayoutStyle.textContent = `
-        ytd-app { margin-right: ${width}px !important; }
-        #masthead-container { right: ${width}px !important; }
+        #page-manager, #masthead-container {
+            max-width: calc(100vw - ${width}px) !important;
+        }
     `;
     window.dispatchEvent(new Event('resize'));
 }
