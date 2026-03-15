@@ -218,6 +218,7 @@
 
 #show-panel.night-mode:hover {
     background-color: #383838;
+    border-color: #444444;
 }
 
 .resize-handle {
