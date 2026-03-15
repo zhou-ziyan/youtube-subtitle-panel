@@ -35,11 +35,6 @@ async function createSubtitlePanel() {
 
     panel.innerHTML = `
         <div class="resize-handle" id="resize-handle"></div>
-        <div class="subtitle-header">
-            <select id="language-select">
-                <option value="">Loading languages...</option>
-            </select>
-        </div>
         <div class="subtitle-content">
             <div class="loading-text">Loading subtitles...</div>
         </div>
@@ -49,6 +44,9 @@ async function createSubtitlePanel() {
                     <button class="font-size-btn" id="decrease-font">A-</button>
                     <button class="font-size-btn" id="increase-font">A+</button>
                 </div>
+                <select id="language-select">
+                    <option value="">Loading languages...</option>
+                </select>
                 <button class="toggle-button" id="hide-panel">Hide</button>
             </div>
         </div>

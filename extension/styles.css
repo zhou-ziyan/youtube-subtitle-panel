@@ -19,29 +19,13 @@
     transform: translateX(300px);
 }
 
-.subtitle-header {
-    padding: 16px;
-    border-bottom: 1px solid #e5e5e5;
-    background-color: #f9f9f9;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.subtitle-header h2 {
-    margin: 0;
-    font-size: 18px;
-    color: #030303;
-    flex-shrink: 0;
-}
-
 #language-select {
-    margin-left: 10px;
     padding: 4px 8px;
     border: 1px solid #e5e5e5;
     border-radius: 4px;
     font-size: 14px;
-    flex-grow: 1;
+    flex: 1;
+    min-width: 0;
 }
 
 .subtitle-content {
@@ -171,17 +155,8 @@
     box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
 }
 
-#subtitle-panel.night-mode .subtitle-header {
-    background-color: #181818;
-    border-bottom-color: #333333;
-}
-
-#subtitle-panel.night-mode .subtitle-header h2 {
-    color: #ffffff;
-}
-
 #subtitle-panel.night-mode #language-select {
-    background-color: #181818;
+    background-color: #282828;
     border-color: #333333;
     color: #ffffff;
 }
