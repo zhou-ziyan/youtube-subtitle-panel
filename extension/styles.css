@@ -161,16 +161,6 @@
     color: #ffffff;
 }
 
-#subtitle-panel.night-mode #language-select optgroup {
-    background-color: #282828;
-    color: #aaaaaa;
-    font-style: normal;
-}
-
-#subtitle-panel.night-mode #language-select option {
-    color: #ffffff;
-}
-
 #subtitle-panel.night-mode .subtitle-content {
     color: #ffffff;
 }

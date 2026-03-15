@@ -86,8 +86,13 @@ function handleListLangs(videoId, res) {
             // Format: "en       English      vtt, ..."
             const match = line.match(/^(\S+)\s+(.+?)\s{2,}/);
             if (match) {
+                const code = match[1];
+                // For auto captions, only keep the original ASR track (e.g. "en-orig")
+                // and skip all auto-translations
+                if (isAuto && !code.endsWith('-orig')) continue;
+
                 tracks.push({
-                    languageCode: match[1],
+                    languageCode: code,
                     languageName: match[2].trim(),
                     kind: isAuto ? 'asr' : undefined,
                 });
