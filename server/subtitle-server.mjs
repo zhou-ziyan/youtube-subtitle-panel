@@ -157,14 +157,22 @@ const server = http.createServer((req, res) => {
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-        console.log(`[subtitle-server] Port ${PORT} in use, killing old process...`);
+        console.log(`[subtitle-server] Port ${PORT} in use, checking process...`);
         execFile('lsof', ['-ti', `:${PORT}`], (_, stdout) => {
             const pid = stdout?.trim();
-            if (pid) {
-                process.kill(Number(pid));
-                console.log(`[subtitle-server] Killed PID ${pid}, restarting...`);
-                setTimeout(() => server.listen(PORT), 500);
-            }
+            if (!pid) return;
+            // Only kill if it's a node process (i.e. a previous subtitle-server)
+            execFile('ps', ['-p', pid, '-o', 'comm='], (_, psOut) => {
+                const comm = psOut?.trim();
+                if (comm === 'node') {
+                    process.kill(Number(pid));
+                    console.log(`[subtitle-server] Killed old node process (PID ${pid}), restarting...`);
+                    setTimeout(() => server.listen(PORT), 500);
+                } else {
+                    console.error(`[subtitle-server] Port ${PORT} is used by "${comm}" (PID ${pid}), not a node process. Aborting.`);
+                    process.exit(1);
+                }
+            });
         });
     } else {
         console.error('[subtitle-server] Server error:', err);
