@@ -21,9 +21,7 @@ function initializePanelInteractions(panel, showButton) {
         let newWidth = Math.max(200, Math.min(startWidth + dx, 600));
         panel.style.width = newWidth + 'px';
         localStorage.setItem(STORAGE_KEYS.PANEL_WIDTH, newWidth);
-        const ytdApp = document.querySelector('ytd-app');
-        if (ytdApp) ytdApp.style.paddingRight = newWidth + 'px';
-        window.dispatchEvent(new Event('resize'));
+        applyPanelWidth(newWidth);
     });
 
     document.addEventListener('mouseup', () => {
@@ -110,12 +108,8 @@ function initializePanelInteractions(panel, showButton) {
         showButton.style.bottom = '';
         localStorage.removeItem(STORAGE_KEYS.SHOW_BTN_POS);
 
-        const ytdApp = document.querySelector('ytd-app');
-        if (ytdApp) {
-            const savedPanelWidth = localStorage.getItem(STORAGE_KEYS.PANEL_WIDTH);
-            const width = savedPanelWidth ? parseInt(savedPanelWidth) : 400;
-            ytdApp.style.paddingRight = width + 'px';
-            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 350);
-        }
+        const savedPanelWidth = localStorage.getItem(STORAGE_KEYS.PANEL_WIDTH);
+        const width = savedPanelWidth ? parseInt(savedPanelWidth) : 400;
+        applyPanelWidth(width);
     });
 }

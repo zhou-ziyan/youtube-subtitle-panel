@@ -1,22 +1,32 @@
 // Panel — HTML creation, cleanup, and feature initialization
 
-// Global variables for cleanup
-let currentVideoObserver = null;
-let currentCleanupFunction = null;
+// Dynamic stylesheet for pushing YouTube content aside
+let panelLayoutStyle = null;
+
+function applyPanelWidth(width) {
+    if (!panelLayoutStyle) {
+        panelLayoutStyle = document.createElement('style');
+        panelLayoutStyle.id = 'subtitle-panel-layout';
+        document.head.appendChild(panelLayoutStyle);
+    }
+    panelLayoutStyle.textContent = `
+        ytd-app { margin-right: ${width}px !important; }
+        #masthead-container { right: ${width}px !important; }
+    `;
+    window.dispatchEvent(new Event('resize'));
+}
+
+function removePanelWidth() {
+    if (panelLayoutStyle) {
+        panelLayoutStyle.remove();
+        panelLayoutStyle = null;
+    }
+    window.dispatchEvent(new Event('resize'));
+}
 
 async function createSubtitlePanel() {
-    // Clean up any existing observers and event listeners
-    if (currentVideoObserver) {
-        console.log('[createSubtitlePanel] Cleaning up previous video observer');
-        currentVideoObserver.disconnect();
-    }
-    if (currentCleanupFunction) {
-        console.log('[createSubtitlePanel] Running previous cleanup function');
-        currentCleanupFunction();
-    }
-
     const currentVideoId = getVideoIdFromUrl(window.location.href);
-    console.log('[createSubtitlePanel] Creating panel elements for video:', currentVideoId);
+    console.log('[createSubtitlePanel] Creating panel for video:', currentVideoId);
 
     const panel = document.createElement('div');
     panel.id = 'subtitle-panel';
@@ -44,17 +54,12 @@ async function createSubtitlePanel() {
     `;
 
     document.body.appendChild(panel);
-    console.log('[createSubtitlePanel] Panel inserted into page');
 
-    // Set initial width from saved value or default
+    // Set initial width
     const savedPanelWidth = localStorage.getItem(STORAGE_KEYS.PANEL_WIDTH);
     const initialWidth = savedPanelWidth ? parseInt(savedPanelWidth) : 400;
     panel.style.width = initialWidth + 'px';
-    const ytdApp = document.querySelector('ytd-app');
-    if (ytdApp) {
-        ytdApp.style.paddingRight = initialWidth + 'px';
-        setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
-    }
+    applyPanelWidth(initialWidth);
 
     // Create the show button (initially hidden)
     const showButton = document.createElement('button');
@@ -65,10 +70,8 @@ async function createSubtitlePanel() {
 
     // Initialize panel features
     initializePanelFeatures();
-    console.log('[createSubtitlePanel] Panel features initialized');
 
     await updateCaptionsAndLanguages();
-    console.log('[createSubtitlePanel] Captions loaded');
 
     // Set up resize and drag interactions
     initializePanelInteractions(panel, showButton);
@@ -83,11 +86,7 @@ function initializePanelFeatures() {
         panel.style.display = 'none';
         showButton.style.display = 'block';
         showButton.textContent = 'Show';
-        const ytdApp = document.querySelector('ytd-app');
-        if (ytdApp) {
-            ytdApp.style.removeProperty('padding-right');
-            setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
-        }
+        removePanelWidth();
     });
 
     // Always apply night mode
@@ -97,15 +96,6 @@ function initializePanelFeatures() {
 
     // Initialize font size controls
     initializeFontSizeControls();
-
-    // Adjust YouTube content to match persisted panel width
-    const savedPanelWidth = localStorage.getItem(STORAGE_KEYS.PANEL_WIDTH);
-    const initialWidth = savedPanelWidth ? parseInt(savedPanelWidth) : 400;
-    const ytdApp = document.querySelector('ytd-app');
-    if (ytdApp) {
-        ytdApp.style.paddingRight = initialWidth + 'px';
-        setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
-    }
 }
 
 function cleanupPanel() {
@@ -118,12 +108,5 @@ function cleanupPanel() {
     if (panel) panel.remove();
     if (showButton) showButton.remove();
 
-    // Restore original page layout
-    const ytdApp = document.querySelector('ytd-app');
-    if (ytdApp) ytdApp.style.removeProperty('padding-right');
-
-    const videoPlayer = document.querySelector('#movie_player');
-    if (videoPlayer) videoPlayer.style.removeProperty('width');
-
-    window.dispatchEvent(new Event('resize'));
+    removePanelWidth();
 }
