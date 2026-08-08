@@ -1,6 +1,21 @@
 // Panel Interactions — resize handle, show-button drag, and show/hide toggle
 
+// Aborts document-level listeners from a previous panel so they don't pile up
+// across SPA navigations
+let panelInteractionsController = null;
+
+function cleanupPanelInteractions() {
+    if (panelInteractionsController) {
+        panelInteractionsController.abort();
+        panelInteractionsController = null;
+    }
+}
+
 function initializePanelInteractions(panel, showButton) {
+    cleanupPanelInteractions();
+    panelInteractionsController = new AbortController();
+    const { signal } = panelInteractionsController;
+
     // --- Resize handle ---
     const resizeHandle = document.getElementById('resize-handle');
     let isResizing = false;
@@ -18,11 +33,11 @@ function initializePanelInteractions(panel, showButton) {
     document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
         const dx = startX - e.clientX;
-        let newWidth = Math.max(200, Math.min(startWidth + dx, 600));
+        const newWidth = clampNumber(startWidth + dx, PANEL.MIN_WIDTH, PANEL.MAX_WIDTH);
         panel.style.width = newWidth + 'px';
         localStorage.setItem(STORAGE_KEYS.PANEL_WIDTH, newWidth);
         applyPanelWidth(newWidth);
-    });
+    }, { signal });
 
     document.addEventListener('mouseup', () => {
         if (isResizing) {
@@ -30,14 +45,14 @@ function initializePanelInteractions(panel, showButton) {
             document.body.style.cursor = '';
             window.dispatchEvent(new Event('resize'));
         }
-    });
+    }, { signal });
 
     // --- Show button drag ---
     let dragStartX = 0, dragStartY = 0, dragMoved = false;
     let offsetX = 0, offsetY = 0, isDragging = false;
 
     // Restore saved position
-    let showBtnPos = localStorage.getItem(STORAGE_KEYS.SHOW_BTN_POS);
+    const showBtnPos = localStorage.getItem(STORAGE_KEYS.SHOW_BTN_POS);
     if (showBtnPos) {
         try {
             const pos = JSON.parse(showBtnPos);
@@ -75,7 +90,7 @@ function initializePanelInteractions(panel, showButton) {
         if (Math.abs(e.clientX - dragStartX) > 3 || Math.abs(e.clientY - dragStartY) > 3) {
             dragMoved = true;
         }
-    });
+    }, { signal });
 
     document.addEventListener('mouseup', () => {
         if (isDragging) {
@@ -87,7 +102,7 @@ function initializePanelInteractions(panel, showButton) {
                 top: showButton.style.top
             }));
         }
-    });
+    }, { signal });
 
     // --- Show button click (toggle panel back) ---
     showButton.addEventListener('click', (e) => {
@@ -98,7 +113,6 @@ function initializePanelInteractions(panel, showButton) {
         }
         showButton.style.display = 'none';
         panel.style.display = '';
-        setTimeout(() => { panel.classList.remove('panel-hidden'); }, 50);
 
         // Reset show button position to default
         showButton.style.position = '';
@@ -108,8 +122,6 @@ function initializePanelInteractions(panel, showButton) {
         showButton.style.bottom = '';
         localStorage.removeItem(STORAGE_KEYS.SHOW_BTN_POS);
 
-        const savedPanelWidth = localStorage.getItem(STORAGE_KEYS.PANEL_WIDTH);
-        const width = savedPanelWidth ? parseInt(savedPanelWidth) : 400;
-        applyPanelWidth(width);
+        applyPanelWidth(getPanelWidth());
     });
 }

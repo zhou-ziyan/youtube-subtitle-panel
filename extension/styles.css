@@ -15,10 +15,6 @@
     overflow: hidden;
 }
 
-#subtitle-panel.panel-hidden {
-    transform: translateX(300px);
-}
-
 #language-select {
     padding: 6px 8px;
     border: 1px solid #e5e5e5;

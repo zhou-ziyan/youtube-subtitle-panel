@@ -4,11 +4,23 @@
 let currentCaptions = [];
 let lastActiveCaptionTime = null;
 
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
 function formatTime(ms) {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remaining = seconds % 60;
-    return `${minutes}:${remaining.toString().padStart(2, '0')}`;
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const pad = n => n.toString().padStart(2, '0');
+    return hours > 0
+        ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+        : `${minutes}:${pad(seconds)}`;
 }
 
 function findActiveCaption(currentTime) {
@@ -19,6 +31,7 @@ function findActiveCaption(currentTime) {
 function scrollToCaption(captionElement) {
     if (!captionElement) return;
     const container = document.querySelector('.subtitle-content');
+    if (!container) return;
     container.scrollTop = captionElement.offsetTop - (container.clientHeight / 3);
 }
 
@@ -31,7 +44,7 @@ function handleCaptionClick(event) {
     const captionItem = event.target.closest('.caption-item');
     if (!captionItem) return;
 
-    const startTime = parseInt(captionItem.dataset.start);
+    const startTime = parseInt(captionItem.dataset.start, 10);
     if (!isNaN(startTime)) {
         // Highlight immediately to prevent flash when timeupdate fires with old time
         const previousActive = document.querySelector('.caption-item.active');
@@ -80,7 +93,7 @@ function updateActiveCaption() {
     const previousActive = document.querySelector('.caption-item.active');
     if (previousActive) previousActive.classList.remove('active');
 
-    const currentElement = document.querySelector(`[data-start="${activeCaption.startTime}"]`);
+    const currentElement = document.querySelector(`.caption-item[data-start="${activeCaption.startTime}"]`);
     if (currentElement) {
         currentElement.classList.add('active');
         scrollToCaption(currentElement);
@@ -90,6 +103,8 @@ function updateActiveCaption() {
 
 function displayCaptions(captions) {
     const subtitleContent = document.querySelector('.subtitle-content');
+    if (!subtitleContent) return;
+
     if (!captions || captions.length === 0) {
         subtitleContent.innerHTML = '<div class="no-captions">No captions available</div>';
         return;
@@ -98,14 +113,14 @@ function displayCaptions(captions) {
     currentCaptions = captions;
     lastActiveCaptionTime = null;
 
-    const fontSize = localStorage.getItem(STORAGE_KEYS.FONT_SIZE) || '14';
+    const fontSize = getFontSize();
 
     subtitleContent.innerHTML = `
         <div class="captions-list">
             ${captions.map(c => `
                 <div class="caption-item" data-start="${c.startTime}" data-end="${c.endTime}">
                     <span class="caption-time">${formatTime(c.startTime)}</span>
-                    <span class="caption-text" style="font-size: ${fontSize}px">${c.text}</span>
+                    <span class="caption-text" style="font-size: ${fontSize}px">${escapeHtml(c.text)}</span>
                 </div>
             `).join('')}
         </div>

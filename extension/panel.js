@@ -26,6 +26,12 @@ function removePanelWidth() {
 }
 
 async function createSubtitlePanel() {
+    // Guard against duplicate panels (e.g. overlapping navigation events)
+    if (document.getElementById('subtitle-panel')) {
+        console.log('[createSubtitlePanel] Panel already exists, skipping');
+        return;
+    }
+
     const currentVideoId = getVideoIdFromUrl(window.location.href);
     console.log('[createSubtitlePanel] Creating panel for video:', currentVideoId);
 
@@ -47,6 +53,7 @@ async function createSubtitlePanel() {
                 <select id="language-select">
                     <option value="">Loading languages...</option>
                 </select>
+                <button class="font-size-btn" id="refresh-subtitles" title="Reload subtitles">⟳</button>
                 <button class="toggle-button" id="hide-panel">Hide</button>
             </div>
         </div>
@@ -55,8 +62,7 @@ async function createSubtitlePanel() {
     document.body.appendChild(panel);
 
     // Set initial width
-    const savedPanelWidth = localStorage.getItem(STORAGE_KEYS.PANEL_WIDTH);
-    const initialWidth = savedPanelWidth ? parseInt(savedPanelWidth) : 400;
+    const initialWidth = getPanelWidth();
     panel.style.width = initialWidth + 'px';
     applyPanelWidth(initialWidth);
 
@@ -70,10 +76,11 @@ async function createSubtitlePanel() {
     // Initialize panel features
     initializePanelFeatures();
 
-    await updateCaptionsAndLanguages();
-
-    // Set up resize and drag interactions
+    // Set up resize and drag interactions before the (slow) caption fetch,
+    // so the panel is usable while subtitles load
     initializePanelInteractions(panel, showButton);
+
+    await updateCaptionsAndLanguages();
 }
 
 function initializePanelFeatures() {
@@ -88,6 +95,12 @@ function initializePanelFeatures() {
         removePanelWidth();
     });
 
+    // Manual refresh — re-fetch languages and captions for the current video
+    document.getElementById('refresh-subtitles').addEventListener('click', () => {
+        console.log('[initializePanelFeatures] Manual subtitle refresh requested');
+        updateCaptionsAndLanguages();
+    });
+
     // Always apply night mode
     // TODO: implement light/dark toggle
     panel.classList.add('night-mode');
@@ -100,6 +113,12 @@ function initializePanelFeatures() {
 function cleanupPanel() {
     const video = document.querySelector('video');
     if (video) video.removeEventListener('timeupdate', updateActiveCaption);
+
+    // Reset caption state so a stale timeupdate can't highlight old captions
+    currentCaptions = [];
+    lastActiveCaptionTime = null;
+
+    cleanupPanelInteractions();
 
     const panel = document.getElementById('subtitle-panel');
     const showButton = document.getElementById('show-panel');

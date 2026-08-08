@@ -39,6 +39,14 @@ function findBestLanguageMatch(tracks, preferredLang) {
     return track;
 }
 
+// True while the panel for this video is still in the DOM. Used after awaits:
+// if the user navigated away mid-fetch, the DOM now belongs to a different
+// video and stale results must not be rendered into it.
+function isPanelCurrent(videoId) {
+    const panel = document.getElementById('subtitle-panel');
+    return !!panel && panel.dataset.currentVideoId === videoId;
+}
+
 async function updateCaptionsAndLanguages() {
     const subtitleContent = document.querySelector('.subtitle-content');
     const languageSelect = document.getElementById('language-select');
@@ -62,6 +70,7 @@ async function updateCaptionsAndLanguages() {
         const langsResp = await fetch(`${SUBTITLE_SERVER}/langs?v=${currentVideoId}`);
         if (!langsResp.ok) throw new Error(`Subtitle server returned ${langsResp.status}`);
         const { tracks } = await langsResp.json();
+        if (!isPanelCurrent(currentVideoId)) return;
 
         if (!tracks || tracks.length === 0) {
             subtitleContent.innerHTML = '<div class="no-captions">No subtitles available for this video.</div>';
@@ -77,7 +86,7 @@ async function updateCaptionsAndLanguages() {
         });
 
         newSelect.innerHTML = tracks.map((track, i) =>
-            `<option value="${i}" data-lang="${track.languageCode}">${track.languageName || track.languageCode}</option>`
+            `<option value="${i}">${escapeHtml(track.languageName || track.languageCode)}</option>`
         ).join('');
         newSelect.disabled = false;
 
@@ -87,26 +96,33 @@ async function updateCaptionsAndLanguages() {
         const selectedTrack = bestMatch || tracks[0];
         newSelect.value = String(tracks.indexOf(selectedTrack));
 
-        // Load captions
-        const captions = await fetchCaptions(selectedTrack.languageCode, currentVideoId);
-        displayCaptions(captions);
-
         // Language change handler
         newSelect.addEventListener('change', async (e) => {
             const track = tracks[parseInt(e.target.value, 10)];
             if (!track) return;
 
-            const langCode = e.target.selectedOptions[0].getAttribute('data-lang');
-            saveLanguagePreference(langCode);
+            saveLanguagePreference(track.languageCode);
 
             subtitleContent.innerHTML = '<div class="loading-text">Loading subtitles...</div>';
             try {
                 const captions = await fetchCaptions(track.languageCode, currentVideoId);
+                if (!isPanelCurrent(currentVideoId)) return;
                 displayCaptions(captions);
             } catch (err) {
-                subtitleContent.innerHTML = `<div class="no-captions">Error: ${err.message}</div>`;
+                subtitleContent.innerHTML = `<div class="no-captions">Error: ${escapeHtml(err.message)}</div>`;
             }
         });
+
+        // Load captions — in its own try so a caption failure keeps the
+        // language list usable (the user can retry with another language)
+        try {
+            const captions = await fetchCaptions(selectedTrack.languageCode, currentVideoId);
+            if (!isPanelCurrent(currentVideoId)) return;
+            displayCaptions(captions);
+        } catch (err) {
+            console.error('[updateCaptionsAndLanguages] Caption load error:', err);
+            subtitleContent.innerHTML = `<div class="no-captions">Error: ${escapeHtml(err.message || 'Failed to load captions')}<br>Try another language from the list below.</div>`;
+        }
 
     } catch (error) {
         console.error('[updateCaptionsAndLanguages] Error:', error);
@@ -114,7 +130,7 @@ async function updateCaptionsAndLanguages() {
         const msg = isFetchError
             ? 'Subtitle server not running. Start it with: node server/subtitle-server.mjs (from project root)'
             : (error.message || 'Unknown error');
-        subtitleContent.innerHTML = `<div class="no-captions">Error: ${msg}</div>`;
+        subtitleContent.innerHTML = `<div class="no-captions">Error: ${escapeHtml(msg)}</div>`;
         newSelect.innerHTML = '<option value="">Error loading languages</option>';
         newSelect.disabled = true;
     }
