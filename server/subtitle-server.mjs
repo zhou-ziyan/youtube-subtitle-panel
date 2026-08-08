@@ -6,7 +6,27 @@ import { join } from 'path';
 
 const PORT = 9876;
 
-function handleCaptions(videoId, lang, res) {
+// Only accept well-formed YouTube video IDs and language codes so nothing
+// unexpected reaches yt-dlp or the temp-file paths.
+const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const LANG_RE = /^[A-Za-z0-9._-]{1,20}$/;
+
+// Reflect the Origin header only for YouTube pages (where the extension runs),
+// so arbitrary websites can't use the visitor's browser to hit this server.
+function corsHeaders(req) {
+    const origin = req.headers.origin || '';
+    if (/^https:\/\/([a-z0-9-]+\.)*youtube\.com$/.test(origin)) {
+        return { 'Access-Control-Allow-Origin': origin };
+    }
+    return {};
+}
+
+function sendJson(res, status, cors, payload) {
+    res.writeHead(status, { 'Content-Type': 'application/json', ...cors });
+    res.end(JSON.stringify(payload));
+}
+
+function handleCaptions(videoId, lang, cors, res) {
     const tmpPath = join(tmpdir(), `yt-sub-${videoId}-${lang}`);
 
     execFile('yt-dlp', [
@@ -19,8 +39,7 @@ function handleCaptions(videoId, lang, res) {
     ], { timeout: 15000 }, async (err, stdout, stderr) => {
         if (err) {
             console.error('[server] yt-dlp error:', err.message);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: err.message }));
+            sendJson(res, 500, cors, { error: err.message });
             return;
         }
 
@@ -29,36 +48,25 @@ function handleCaptions(videoId, lang, res) {
         try {
             const data = await readFile(filePath, 'utf-8');
             console.log(`[server] Got captions: ${lang}, ${data.length} bytes`);
-            res.writeHead(200, {
-                'Content-Type': 'text/xml',
-                'Access-Control-Allow-Origin': '*',
-            });
+            res.writeHead(200, { 'Content-Type': 'text/xml', ...cors });
             res.end(data);
             await unlink(filePath).catch(() => {});
         } catch (readErr) {
             console.error('[server] File read error:', readErr.message);
             console.error('[server] stderr:', stderr);
-            res.writeHead(404, {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            });
-            res.end(JSON.stringify({ error: `No subtitles found for lang=${lang}` }));
+            sendJson(res, 404, cors, { error: `No subtitles found for lang=${lang}` });
         }
     });
 }
 
-function handleListLangs(videoId, res) {
+function handleListLangs(videoId, cors, res) {
     execFile('yt-dlp', [
         '--list-subs',
         '--skip-download',
         `https://www.youtube.com/watch?v=${videoId}`,
     ], { timeout: 15000 }, (err, stdout, stderr) => {
         if (err) {
-            res.writeHead(500, {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            });
-            res.end(JSON.stringify({ error: err.message }));
+            sendJson(res, 500, cors, { error: err.message });
             return;
         }
 
@@ -100,19 +108,17 @@ function handleListLangs(videoId, res) {
         }
 
         console.log(`[server] Listed ${tracks.length} subtitle tracks for ${videoId}`);
-        res.writeHead(200, {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-        });
-        res.end(JSON.stringify({ tracks }));
+        sendJson(res, 200, cors, { tracks });
     });
 }
 
 const server = http.createServer((req, res) => {
+    const cors = corsHeaders(req);
+
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
         res.writeHead(204, {
-            'Access-Control-Allow-Origin': '*',
+            ...cors,
             'Access-Control-Allow-Methods': 'GET',
             'Access-Control-Allow-Headers': 'Content-Type',
         });
@@ -125,41 +131,42 @@ const server = http.createServer((req, res) => {
     if (url.pathname === '/captions') {
         const videoId = url.searchParams.get('v');
         const lang = url.searchParams.get('lang') || 'en';
-        if (!videoId) {
-            res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-            res.end(JSON.stringify({ error: 'Missing ?v= parameter' }));
+        if (!videoId || !VIDEO_ID_RE.test(videoId)) {
+            sendJson(res, 400, cors, { error: 'Missing or invalid ?v= parameter' });
             return;
         }
-        handleCaptions(videoId, lang, res);
+        if (!LANG_RE.test(lang)) {
+            sendJson(res, 400, cors, { error: 'Invalid ?lang= parameter' });
+            return;
+        }
+        handleCaptions(videoId, lang, cors, res);
         return;
     }
 
     if (url.pathname === '/langs') {
         const videoId = url.searchParams.get('v');
-        if (!videoId) {
-            res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-            res.end(JSON.stringify({ error: 'Missing ?v= parameter' }));
+        if (!videoId || !VIDEO_ID_RE.test(videoId)) {
+            sendJson(res, 400, cors, { error: 'Missing or invalid ?v= parameter' });
             return;
         }
-        handleListLangs(videoId, res);
+        handleListLangs(videoId, cors, res);
         return;
     }
 
     if (url.pathname === '/health') {
-        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ status: 'ok' }));
+        sendJson(res, 200, cors, { status: 'ok' });
         return;
     }
 
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+    sendJson(res, 404, cors, { error: 'Not found' });
 });
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
         console.log(`[subtitle-server] Port ${PORT} in use, checking process...`);
         execFile('lsof', ['-ti', `:${PORT}`], (_, stdout) => {
-            const pid = stdout?.trim();
+            // lsof can print multiple PIDs (one per line); the first is the listener
+            const pid = stdout?.trim().split('\n')[0];
             if (!pid) return;
             // Only kill if it's a node process (i.e. a previous subtitle-server)
             execFile('ps', ['-p', pid, '-o', 'comm='], (_, psOut) => {
@@ -167,7 +174,7 @@ server.on('error', (err) => {
                 if (comm === 'node') {
                     process.kill(Number(pid));
                     console.log(`[subtitle-server] Killed old node process (PID ${pid}), restarting...`);
-                    setTimeout(() => server.listen(PORT), 500);
+                    setTimeout(() => server.listen(PORT, '127.0.0.1'), 500);
                 } else {
                     console.error(`[subtitle-server] Port ${PORT} is used by "${comm}" (PID ${pid}), not a node process. Aborting.`);
                     process.exit(1);
@@ -180,7 +187,9 @@ server.on('error', (err) => {
     }
 });
 
-server.listen(PORT, () => {
+// Bind to loopback only — this server shells out to yt-dlp and must never be
+// reachable from other machines on the network.
+server.listen(PORT, '127.0.0.1', () => {
     console.log(`[subtitle-server] Running on http://localhost:${PORT}`);
     console.log(`[subtitle-server] Endpoints:`);
     console.log(`  GET /langs?v=VIDEO_ID         — list available subtitle languages`);
