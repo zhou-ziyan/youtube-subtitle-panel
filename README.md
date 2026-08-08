@@ -10,8 +10,8 @@ Navigate YouTube videos with a smart, resizable subtitle panel—jump to any mom
 - **Language Selection:** Dropdown lists all available subtitle tracks, sorted alphabetically. Automatically selects your preferred or browser language on first load; saves your choice for future videos.
 - **Font Size Controls:** `A-` / `A+` buttons adjust subtitle font size between 12–24px (step 2, default 14px). Preference is saved.
 - **Click-to-Seek:** Click any subtitle line to jump the video to that timestamp.
-- **Refresh Button:** A "Not the new subtitle? Click here:" prompt with a refresh button (⟳) is always shown in the header. Use it if subtitles fail to load or are mismatched.
-- **Auto-Reload on Navigation:** When you navigate to a new YouTube video via YouTube's in-page navigation (not a full page load), the extension automatically reloads the page once to fetch fresh subtitle data. This is expected behavior.
+- **Refresh Button:** A refresh button (⟳) in the footer re-fetches languages and subtitles. Use it if subtitles fail to load or are mismatched.
+- **SPA Navigation:** When you navigate to a new YouTube video via YouTube's in-page navigation (not a full page load), the panel is rebuilt automatically for the new video.
 - **Hide / Show:** Click "Hide" to collapse the panel. It is replaced by a small "Show" button that you can drag anywhere on screen. Clicking "Show" restores the panel.
 - **Ad Detection:** While an ad is playing, subtitle highlighting is paused and "Subtitles loaded. Ad is playing..." is shown.
 - **Persistence:** Panel width, font size, language preference, and "Show" button position are all saved in `localStorage`.
@@ -55,11 +55,10 @@ brew install node
 ```bash
 # Clone or download this repository
 git clone <repo-url>
-cd subtitle
-
-# Install Node dependencies (only needed once)
-npm install
+cd youtube-subtitle-panel
 ```
+
+No npm dependencies are required — the server uses only Node.js built-ins plus the `yt-dlp` CLI.
 
 ### Load the Chrome extension
 
@@ -77,7 +76,8 @@ npm install
 Before opening YouTube, start the server in a terminal:
 
 ```bash
-node subtitle-server.mjs
+node server/subtitle-server.mjs
+# or: npm start
 ```
 
 You should see:
@@ -95,13 +95,13 @@ Keep this terminal open while using the extension.
 ### Step 2: Use the extension
 
 1. Navigate to any YouTube video (`youtube.com/watch?v=...`).
-2. The subtitle panel appears on the right. The page may reload once automatically — this is normal.
-3. **Language:** Use the dropdown in the header to switch subtitle language. Your choice is saved.
+2. The subtitle panel appears on the right.
+3. **Language:** Use the dropdown in the footer to switch subtitle language. Your choice is saved.
 4. **Font size:** Use `A-` / `A+` in the footer to adjust text size.
 5. **Seek:** Click any subtitle line to jump to that point in the video.
 6. **Resize:** Drag the left edge of the panel to resize it (200–600px).
 7. **Hide/Show:** Click "Hide" to collapse; drag or click the floating "Show" button to restore.
-8. **Subtitles not loading?** Make sure the subtitle server is running, then click the ⟳ refresh button in the header.
+8. **Subtitles not loading?** Make sure the subtitle server is running, then click the ⟳ refresh button in the footer.
 
 ---
 
@@ -109,13 +109,13 @@ Keep this terminal open while using the extension.
 
 The extension uses a two-part architecture:
 
-1. **Subtitle server** (`subtitle-server.mjs`) — A local Node.js HTTP server on port 9876 that calls `yt-dlp` to download subtitles. This avoids all YouTube API authentication issues since `yt-dlp` handles that internally.
+1. **Subtitle server** (`server/subtitle-server.mjs`) — A local Node.js HTTP server on `127.0.0.1:9876` that calls `yt-dlp` to download subtitles. This avoids all YouTube API authentication issues since `yt-dlp` handles that internally.
 
-2. **Chrome extension** (`content.js`, `styles.css`) — Injects a subtitle panel into YouTube video pages. When a video loads, the extension requests available languages and caption data from the local server.
+2. **Chrome extension** (`extension/`) — Injects a subtitle panel into YouTube video pages. When a video loads, the extension requests available languages and caption data from the local server.
 
 ```
-YouTube page  →  content.js  →  localhost:9876  →  yt-dlp  →  YouTube
-                  (UI panel)     (local server)     (CLI)     (captions)
+YouTube page  →  extension/  →  localhost:9876  →  yt-dlp  →  YouTube
+                 (UI panel)     (local server)     (CLI)     (captions)
 ```
 
 ---
@@ -125,10 +125,17 @@ YouTube page  →  content.js  →  localhost:9876  →  yt-dlp  →  YouTube
 | File | Purpose |
 |---|---|
 | `manifest.json` | Chrome extension manifest |
-| `content.js` | Extension logic: panel injection, UI controls, SPA navigation |
-| `styles.css` | Panel and UI styles |
-| `subtitle-server.mjs` | Local HTTP server that fetches subtitles via yt-dlp |
-| `icon48.png`, `icon128.png` | Extension icons |
+| `extension/preferences.js` | localStorage helpers, font size controls |
+| `extension/captions.js` | Fetching and parsing subtitle data |
+| `extension/captions-ui.js` | Caption display, highlight, scroll, seek, ad detection |
+| `extension/language.js` | Language list loading, preference matching |
+| `extension/panel.js` | Panel creation, cleanup, feature initialization |
+| `extension/panel-interactions.js` | Resize handle, show-button drag |
+| `extension/navigation.js` | URL detection, SPA navigation handling |
+| `extension/content.js` | Entry point |
+| `extension/styles.css` | Panel and UI styles |
+| `server/subtitle-server.mjs` | Local HTTP server that fetches subtitles via yt-dlp |
+| `icons/` | Extension icons |
 
 ---
 
@@ -136,7 +143,7 @@ YouTube page  →  content.js  →  localhost:9876  →  yt-dlp  →  YouTube
 
 | Problem | Solution |
 |---|---|
-| "Subtitle server not running" error in panel | Start the server: `node subtitle-server.mjs` |
+| "Subtitle server not running" error in panel | Start the server: `node server/subtitle-server.mjs` |
 | No subtitles for a specific language | Not all videos have subtitles in all languages. Try `en` or check available languages in the dropdown |
 | yt-dlp errors | Update yt-dlp: `pip install -U yt-dlp` or `brew upgrade yt-dlp` |
 | Subtitles not updating after navigating to new video | Click the ⟳ refresh button in the panel header |
